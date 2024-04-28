@@ -1,0 +1,10 @@
+librsa
+scipy
+lightning=2.2.3
+matplotlib
+tensorboard
+hydra-core
+h5py
+soundfile
+tqdm
+pretty-midi

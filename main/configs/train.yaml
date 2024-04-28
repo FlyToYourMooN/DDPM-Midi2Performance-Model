@@ -1,0 +1,80 @@
+# mastero piano solo dataset
+mastero:
+  data_path: /disk2/Piano-Solo/Origin
+  save_path: /disk2/Piano-Solo/Processed_data
+  train_rate: 0.90
+  val_rate: 0.05
+  sample_rate: 44032
+# musicnet dataset
+musicnet:
+  data_path: /disk2/MusicNet/musicnet.npz
+  save_path: /disk2/MusicNet/String_Quartet
+  
+  #Since the number of each type of music in MusicNet is relatively small, 
+  #no validation set is set, 
+  #and only one data is extracted as the test set
+
+  music_type: "String Quartet" #Must be in musicnet_type.json
+  sample_rate: 44100
+
+data:
+  train_root: "/disk2/Piano-Solo/Processed_data/train"
+  val_root: "/disk2/Piano-Solo/Processed_data/val"
+  split_frame: 2048 
+  n_fft: 2048 
+  hop_length: 512
+  win_length: 2048
+  fmin: 0
+  fmax: None
+  num_mels: 128
+  n_channels: 1
+  min_level_db: -5
+  train_frame: 512
+
+model:
+  dim : 64
+  n_residual: 2
+  dim_mults: "1,1,2,2,4,4"
+  dropout: 0.0
+  beta1: 0.0001
+  beta2: 0.02
+  n_timesteps: 1000
+
+training:
+  seed: 0
+  fp16: False
+  use_ema: True
+  ema_decay: 0.9999
+  batch_size: 16
+  epochs: 500
+  log_step: 1
+  chkpt_interval: 1
+  optimizer: "Adam"
+  lr: 5e-5
+  restore_path: ""
+  results_dir: "M2P_model"
+  workers: 16
+  grad_clip: 1.0
+  n_anneal_steps: 5000
+  loss: "l1"
+  chkpt_prefix: "2048-512-2048-2res"
+  ckpt_path: "/disk2/Opensource-DDPM-M2P/M2P_model/checkpoints/ddpmv2-2048-512-2048-2res-epoch=190-loss=0.0644.ckpt"
+
+evaluation:
+    chkpt_path: "/disk2/Opensource-DDPM-M2P/M2P_model/checkpoints/ddpmv2-2048-512-2048-2res-epoch=227-loss=0.0271.ckpt"
+    seed: 42
+    device: "cuda"
+    n_steps: 50
+    workers: 2
+    variance: "fixedsmall"
+    sample_prefix: ""
+    temp: 1.0
+    vocoder_path: "/disk2/Opensource-DDPM-M2P/M2P_model/firefly-gan-base-generator.ckpt"
+    test_npz_path: "/disk2/Piano-Solo/Processed_data/test"
+    test_midi_path: "/disk2/DDPM-M2P/gen_example"
+    data_start: 0
+    data_frame: 4096 
+    max_frame: 2048
+    dataset_type: mastero
+
+    
