@@ -1,5 +1,5 @@
 # A Midi(pianoroll) to Performace model based on DDPM
-
+![](imgs/generation_example.png "Pipline")
 ## TO DO
 - [x] Piano Solo(Mastero Dataset) model train
 - [x] The script for processing the Mastero and Musicnet dataset
