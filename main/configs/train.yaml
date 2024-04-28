@@ -58,7 +58,7 @@ training:
   n_anneal_steps: 5000
   loss: "l1"
   chkpt_prefix: "2048-512-2048-2res"
-  ckpt_path: "/disk2/Opensource-DDPM-M2P/M2P_model/checkpoints/ddpmv2-2048-512-2048-2res-epoch=190-loss=0.0644.ckpt"
+  ckpt_path: ""
 
 evaluation:
     chkpt_path: "/disk2/Opensource-DDPM-M2P/M2P_model/checkpoints/ddpmv2-2048-512-2048-2res-epoch=227-loss=0.0271.ckpt"

@@ -15,8 +15,8 @@
 pip install -r requirements.txt
 ```
 ## Inference for Midi to Performace
-1. Download pretained M2P model
-2. Download pretained Vocoder
+1. Download pretained M2P model in releases
+2. Download pretained Vocoder in https://github.com/fishaudio/vocoder/releases/download/1.0.0/firefly-gan-base-generator.ckpt
 3. Adjust `train.yaml`, 
 **Notice use Absolute path**
 ```yaml
