@@ -21,10 +21,10 @@ pip install -r requirements.txt
 **Notice use Absolute path**
 ```yaml
 evaluation:
-    chkpt_path: "/disk2/Opensource-DDPM-M2P/M2P_model/checkpoints/ddpmv2-2048-512-2048-2res-epoch=227-loss=0.0271.ckpt"         #M2P model path
+    chkpt_path: "/disk2/Opensource-DDPM-M2P/M2P_model/checkpoints/ddpmv2-2048-512-2048-2res-epoch=227-loss=0.0271.ckpt"  #M2P model path
     device: "cuda"
-    vocoder_path: "/disk2/Opensource-DDPM-M2P/M2P_model/firefly-gan-base-generator.ckpt"  #Vocoder path
-    test_midi_path: "/disk2/Opensource-DDPM-M2P/midis" #midi path
+    vocoder_path: "/disk2/Opensource-DDPM-M2P/M2P_model/firefly-gan-base-generator.ckpt"      #Vocoder path
+    test_midi_path: "/disk2/DDPM-M2P/gen_example"      #midi path
     data_start: 0
     max_frame: 2048  #Once inference length
     dataset_type: mastero  
