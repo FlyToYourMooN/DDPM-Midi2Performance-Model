@@ -94,7 +94,7 @@ def Main(config):
     music_ids = data[music_type]
     
     #load musicnet dataset
-    dataset = np.load(open(config.data_path, 'rb'), encoding = 'latin1', allow_pickle=True)
+    dataset = np.load(open(config.musicnet.data_path, 'rb'), encoding = 'latin1', allow_pickle=True)
 
     pianoroll_list, wav_list = [], []
     for music_id in music_ids: 
