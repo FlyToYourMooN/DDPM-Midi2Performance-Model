@@ -5,19 +5,18 @@ from functools import partial
 from math import prod
 from typing import Callable
 
+import librosa
 import numpy as np
+import soundfile as sf
 import torch
 import torch.nn.functional as F
+import torchaudio
 from torch import nn
 from torch.nn import Conv1d
 from torch.nn.utils.parametrizations import weight_norm
 from torch.nn.utils.parametrize import remove_parametrizations
 from torch.utils.checkpoint import checkpoint
-import torchaudio
-import soundfile as sf
 from torchaudio.transforms import MelScale
-import librosa
-
 
 
 def init_weights(m, mean=0.0, std=0.01):
@@ -28,6 +27,8 @@ def init_weights(m, mean=0.0, std=0.01):
 
 def get_padding(kernel_size, dilation=1):
     return (kernel_size * dilation - dilation) // 2
+
+
 class ResBlock1(torch.nn.Module):
     def __init__(self, channels, kernel_size=3, dilation=(1, 3, 5)):
         super().__init__()
@@ -122,10 +123,10 @@ class ResBlock1(torch.nn.Module):
 
 class ParralelBlock(nn.Module):
     def __init__(
-            self,
-            channels: int,
-            kernel_sizes=(3, 7, 11),  # tuple[int]
-            dilation_sizes=((1, 3, 5), (1, 3, 5), (1, 3, 5)),  # tuple[tuple[int]]
+        self,
+        channels: int,
+        kernel_sizes=(3, 7, 11),  # tuple[int]
+        dilation_sizes=((1, 3, 5), (1, 3, 5), (1, 3, 5)),  # tuple[tuple[int]]
     ):
         super().__init__()
 
@@ -145,24 +146,24 @@ class ParralelBlock(nn.Module):
 
 class HiFiGANGenerator(nn.Module):
     def __init__(
-            self,
-            *,
-            hop_length: int = 512,
-            upsample_rates=(8, 8, 2, 2, 2),  # tuple[int]
-            upsample_kernel_sizes=(16, 16, 8, 2, 2),  # tuple[int]
-            resblock_kernel_sizes=(3, 7, 11),  # tuple[int]
-            resblock_dilation_sizes=((1, 3, 5), (1, 3, 5), (1, 3, 5)),  # tuple[tuple[int]]
-            num_mels: int = 128,
-            upsample_initial_channel: int = 512,
-            use_template: bool = True,
-            pre_conv_kernel_size: int = 7,
-            post_conv_kernel_size: int = 7,
-            post_activation: Callable = partial(nn.SiLU, inplace=True),
+        self,
+        *,
+        hop_length: int = 512,
+        upsample_rates=(8, 8, 2, 2, 2),  # tuple[int]
+        upsample_kernel_sizes=(16, 16, 8, 2, 2),  # tuple[int]
+        resblock_kernel_sizes=(3, 7, 11),  # tuple[int]
+        resblock_dilation_sizes=((1, 3, 5), (1, 3, 5), (1, 3, 5)),  # tuple[tuple[int]]
+        num_mels: int = 128,
+        upsample_initial_channel: int = 512,
+        use_template: bool = True,
+        pre_conv_kernel_size: int = 7,
+        post_conv_kernel_size: int = 7,
+        post_activation: Callable = partial(nn.SiLU, inplace=True),
     ):
         super().__init__()
 
         assert (
-                prod(upsample_rates) == hop_length
+            prod(upsample_rates) == hop_length
         ), f"hop_length must be {prod(upsample_rates)}"
 
         self.conv_pre = weight_norm(
@@ -187,7 +188,7 @@ class HiFiGANGenerator(nn.Module):
             self.ups.append(
                 weight_norm(
                     nn.ConvTranspose1d(
-                        upsample_initial_channel // (2 ** i),
+                        upsample_initial_channel // (2**i),
                         upsample_initial_channel // (2 ** (i + 1)),
                         k,
                         u,
@@ -200,7 +201,7 @@ class HiFiGANGenerator(nn.Module):
                 continue
 
             if i + 1 < len(upsample_rates):
-                stride_f0 = np.prod(upsample_rates[i + 1:])
+                stride_f0 = np.prod(upsample_rates[i + 1 :])
                 self.noise_convs.append(
                     Conv1d(
                         1,
@@ -269,7 +270,7 @@ class HiFiGANGenerator(nn.Module):
 
 # DropPath copied from timm library
 def drop_path(
-        x, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True
+    x, drop_prob: float = 0.0, training: bool = False, scale_by_keep: bool = True
 ):
     """Drop paths (Stochastic Depth) per sample (when applied in main path of residual blocks).
 
@@ -285,7 +286,7 @@ def drop_path(
         return x
     keep_prob = 1 - drop_prob
     shape = (x.shape[0],) + (1,) * (
-            x.ndim - 1
+        x.ndim - 1
     )  # work with diff dim tensors, not just 2D ConvNets
     random_tensor = x.new_empty(shape).bernoulli_(keep_prob)
     if keep_prob > 0.0 and scale_by_keep:
@@ -355,13 +356,13 @@ class ConvNeXtBlock(nn.Module):
     """  # noqa: E501
 
     def __init__(
-            self,
-            dim: int,
-            drop_path: float = 0.0,
-            layer_scale_init_value: float = 1e-6,
-            mlp_ratio: float = 4.0,
-            kernel_size: int = 7,
-            dilation: int = 1,
+        self,
+        dim: int,
+        drop_path: float = 0.0,
+        layer_scale_init_value: float = 1e-6,
+        mlp_ratio: float = 4.0,
+        kernel_size: int = 7,
+        dilation: int = 1,
     ):
         super().__init__()
 
@@ -409,13 +410,13 @@ class ConvNeXtBlock(nn.Module):
 
 class ConvNeXtEncoder(nn.Module):
     def __init__(
-            self,
-            input_channels: int = 3,
-            depths=[3, 3, 9, 3],  # list[int]
-            dims=[96, 192, 384, 768],  # list[int]
-            drop_path_rate: float = 0.0,
-            layer_scale_init_value: float = 1e-6,
-            kernel_size: int = 7,
+        self,
+        input_channels: int = 3,
+        depths=[3, 3, 9, 3],  # list[int]
+        dims=[96, 192, 384, 768],  # list[int]
+        drop_path_rate: float = 0.0,
+        layer_scale_init_value: float = 1e-6,
+        kernel_size: int = 7,
     ):
         super().__init__()
         assert len(depths) == len(dims)
@@ -468,8 +469,8 @@ class ConvNeXtEncoder(nn.Module):
             nn.init.constant_(m.bias, 0)
 
     def forward(
-            self,
-            x: torch.Tensor,
+        self,
+        x: torch.Tensor,
     ) -> torch.Tensor:
         for i in range(len(self.downsample_layers)):
             x = self.downsample_layers[i](x)
@@ -479,7 +480,9 @@ class ConvNeXtEncoder(nn.Module):
 
 
 class FireflyBase(nn.Module):
-    def __init__(self, ckpt_path: str = None, pretrained: bool = False, loaded_state_dict=None):
+    def __init__(
+        self, ckpt_path: str = None, pretrained: bool = False, loaded_state_dict=None
+    ):
         super().__init__()
 
         self.backbone = ConvNeXtEncoder(
@@ -513,13 +516,13 @@ class FireflyBase(nn.Module):
             else:
                 raise ValueError("ckpt_path must be provided")
             # 讲道理预训练模型未来还是会试用集中统一的管理，就不用自带的了
-            '''
+            """
             elif pretrained:
                 state_dict = torch.hub.load_state_dict_from_url(
                     "https://github.com/fishaudio/vocoder/releases/download/1.0.0/firefly-gan-base.ckpt",
                     map_location="cpu",
                 )
-            '''
+            """
 
         if "state_dict" in state_dict:
             state_dict = state_dict["state_dict"]
@@ -547,11 +550,11 @@ if __name__ == "__main__":
     model = FireflyBase("/disk2/FFGAN/vocoder-1.0.0/firefly-gan-base-generator.ckpt")
     model.eval()
     mel_t = LogMelSpectrogram()
-    #y, sr = torchaudio.load("/disk2/OpenSinger/WomanRaw/1_我和我的祖国/1_我和我的祖国_1.wav")
+    # y, sr = torchaudio.load("/disk2/OpenSinger/WomanRaw/1_我和我的祖国/1_我和我的祖国_1.wav")
     y, sr = librosa.load("/disk2/OpenSinger/WomanRaw/1_我和我的祖国/1_我和我的祖国_1.wav", sr=44032)
     y = torch.from_numpy(y).unsqueeze(0)
-    #y = y[:,10*sr:50*sr]
+    # y = y[:,10*sr:50*sr]
     mel = mel_t(y)
     with torch.no_grad():
         y = model(mel)
-    sf.write("5.wav",y.numpy()[0][0],sr)
+    sf.write("5.wav", y.numpy()[0][0], sr)

@@ -1,24 +1,32 @@
 import logging
 
+import librosa
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from scipy.signal import resample_poly
-from scipy.signal import butter, cheby1, cheby2, ellip, bessel
-from scipy.signal import sosfiltfilt
-import librosa
-from librosa.filters import mel as librosa_mel_fn
-import torchaudio.transforms as transforms
 import torch.nn.functional as F
+import torchaudio.transforms as transforms
+from librosa.filters import mel as librosa_mel_fn
+from scipy.signal import (
+    bessel,
+    butter,
+    cheby1,
+    cheby2,
+    ellip,
+    resample_poly,
+    sosfiltfilt,
+)
 from torchaudio.transforms import MelScale
 
 logger = logging.getLogger(__name__)
+
 
 def __parse_str(s):
     split = s.split(",")
     return [int(s) for s in split if s != "" and s is not None]
 
-#fix params, from FFGan vocoder
+
+# fix params, from FFGan vocoder
 class LinearSpectrogram(torch.nn.Module):
     def __init__(
         self,
@@ -38,7 +46,7 @@ class LinearSpectrogram(torch.nn.Module):
 
         self.register_buffer("window", torch.hann_window(win_length))
 
-    def forward(self, y) :
+    def forward(self, y):
         if y.ndim == 3:
             y = y.squeeze(1)
 
@@ -70,7 +78,8 @@ class LinearSpectrogram(torch.nn.Module):
             spec = torch.sqrt(spec.pow(2).sum(-1) + 1e-6)
 
         return spec
-        
+
+
 class LogMelSpectrogram(torch.nn.Module):
     def __init__(
         self,
@@ -133,27 +142,26 @@ def configure_device(device):
 
 
 def normalize(S, min_level_db):
-    return ((S - min_level_db) /- min_level_db)
+    return (S - min_level_db) / -min_level_db
 
-def denormalize(S,min_level_db):
-    return (S *- min_level_db) + min_level_db
-  
+
+def denormalize(S, min_level_db):
+    return (S * -min_level_db) + min_level_db
+
+
 def padding_spec(spec, max_length):
     lens = len(spec[0])
-    padding_size = max_length-lens%max_length
+    padding_size = max_length - lens % max_length
     padding_mask = torch.zeros([len(spec), padding_size])
-    spec = torch.cat([spec, padding_mask],axis=1)
+    spec = torch.cat([spec, padding_mask], axis=1)
     return spec
+
 
 def cross_fade(a, b, idx: int):
     result = np.zeros(idx + b.shape[0])
     fade_len = a.shape[0] - idx
     np.copyto(dst=result[:idx], src=a[:idx])
     k = np.linspace(0, 1.0, num=fade_len, endpoint=True)
-    result[idx: a.shape[0]] = (1 - k) * a[idx:] + k * b[: fade_len]
-    np.copyto(dst=result[a.shape[0]:], src=b[fade_len:])
+    result[idx : a.shape[0]] = (1 - k) * a[idx:] + k * b[:fade_len]
+    np.copyto(dst=result[a.shape[0] :], src=b[fade_len:])
     return result
-
-
-
-

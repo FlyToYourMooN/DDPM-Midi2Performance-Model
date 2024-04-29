@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 from torchvision.utils import make_grid
 
+
 class DDPMWrapper(pl.LightningModule):
     def __init__(
         self,
@@ -41,11 +42,13 @@ class DDPMWrapper(pl.LightningModule):
         # Disable automatic optimization
         self.automatic_optimization = False
 
-    def forward(self, x, y,cond=None, n_steps=None, checkpoints=[]):
+    def forward(self, x, y, cond=None, n_steps=None, checkpoints=[]):
         sample_nw = (
             self.target_network if self.sample_from == "target" else self.online_network
         )
-        return sample_nw.sample(x, y,cond=cond, n_steps=n_steps, checkpoints=checkpoints)
+        return sample_nw.sample(
+            x, y, cond=cond, n_steps=n_steps, checkpoints=checkpoints
+        )
 
     def training_step(self, batch, batch_idx):
         # Optimizers
@@ -53,18 +56,18 @@ class DDPMWrapper(pl.LightningModule):
         lr_sched = self.lr_schedulers()
 
         cond = None
-        y=None
+        y = None
         if self.conditional:
             x, cond = batch
         else:
-            y,x=batch
+            y, x = batch
         # Sample timepoints
         t = torch.randint(
             0, self.online_network.T, size=(x.size(0),), device=self.device
         )
 
         # Sample noise
-        eps = torch.randn_like(x)   
+        eps = torch.randn_like(x)
         # Predict noise
         eps_pred = self.online_network(x, eps, t, y=y, cond=cond)
 
@@ -102,7 +105,6 @@ class DDPMWrapper(pl.LightningModule):
         (recons, _), x_t = batch
         x_t = self.temp * x_t[0]  # This is really a one element tuple
 
-   
         return (
             self(
                 x_t,
@@ -112,6 +114,7 @@ class DDPMWrapper(pl.LightningModule):
             ),
             recons,
         )
+
     def load_model(self):
         return self.target_network.decoder
 
