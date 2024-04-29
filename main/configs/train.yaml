@@ -8,13 +8,13 @@ mastero:
 # musicnet dataset
 musicnet:
   data_path: /disk2/MusicNet/musicnet.npz
-  save_path: /disk2/MusicNet/String_Quartet
+  save_path: /disk2/MusicNet/Solo_Cello
   
   #Since the number of each type of music in MusicNet is relatively small, 
   #no validation set is set, 
   #and only one data is extracted as the test set
 
-  music_type: "String Quartet" #Must be in musicnet_type.json
+  music_type: "Solo Cello" #Must be in musicnet_type.json
   sample_rate: 44100
 
 data:
@@ -61,7 +61,7 @@ training:
   ckpt_path: ""
 
 evaluation:
-    chkpt_path: "/disk2/Opensource-DDPM-M2P/M2P_model/checkpoints/ddpmv2-2048-512-2048-2res-epoch=227-loss=0.0271.ckpt"
+    chkpt_path: "/disk2/Opensource-DDPM-M2P/M2P_model/checkpoints/ddpmv2-2048-512-2048-2res-epoch=398-loss=0.0570.ckpt"
     seed: 42
     device: "cuda"
     n_steps: 50
@@ -70,7 +70,7 @@ evaluation:
     sample_prefix: ""
     temp: 1.0
     vocoder_path: "/disk2/Opensource-DDPM-M2P/M2P_model/firefly-gan-base-generator.ckpt"
-    test_npz_path: "/disk2/Piano-Solo/Processed_data/test"
+    test_npz_path: "/disk2/Opensource-DDPM-M2P/midis"
     test_midi_path: "/disk2/DDPM-M2P/gen_example"
     data_start: 0
     data_frame: 4096 
