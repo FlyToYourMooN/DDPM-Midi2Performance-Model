@@ -72,6 +72,15 @@ def Inpainting(config):
 
     device = torch.device(config.evaluation.device)
     n_steps = config.evaluation.n_steps
+    dataset_type = config.evaluation.dataset_type
+
+    if dataset_type == "mastero":
+        config_dataset = config.mastero
+    elif dataset_type == "musicnet":
+        config_dataset = config.musicnet
+
+    sample_rate = config_dataset.sample_rate
+    hop_length = config.data.hop_length
 
     #Load test file 
     test_npz = glob.glob(os.path.join(config.evaluation.test_npz_path, "*.npz"))
@@ -92,7 +101,7 @@ def Inpainting(config):
         FFGan = FireflyBase(config.evaluation.vocoder_path)
         FFGan.eval()
         
-        for fnpz in tqdm(test_npz[1:2]):
+        for fnpz in tqdm(test_npz[:]):
 
             file_name = fnpz.strip().split("/")[-1]
             npz = np.load(fnpz)
@@ -143,9 +152,10 @@ def Inpainting(config):
 
             mel = denormalize(mel, config.data.min_level_db)
             gen_wav = FFGan(mel.unsqueeze(0)).numpy()[0][0]
-            sf.write("gen.wav", gen_wav, config.data.sample_rate)
+            sf.write(f"{file_name}_gen.wav", gen_wav, sample_rate)
 
             ori_wav = FFGan(torch.from_numpy(ori[:, data_start:data_start+ data_frame]).unsqueeze(0)).numpy()[0][0]
-            sf.write("ori.wav", ori_wav, config.data.sample_rate)
+            sf.write(f"{file_name}_ori.wav", ori_wav, sample_rate)
+            
 if __name__ == "__main__":
     Inpainting()
