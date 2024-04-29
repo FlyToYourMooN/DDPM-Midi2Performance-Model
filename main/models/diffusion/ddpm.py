@@ -1,8 +1,11 @@
-import torch
-import torch.nn as nn
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
+import torch.nn as nn
+
 torch.manual_seed(42)
+
+
 def extract(a, t, x_shape):
     b, *_ = t.shape
     out = a.gather(-1, t).float()
@@ -82,7 +85,7 @@ class DDPM(nn.Module):
             - extract(self.sqrt_recipm1_alphas_cumprod, t, x_t.shape) * eps
         )
 
-    def get_posterior_mean_covariance(self, x_t, t,y, clip_denoised=False, cond=None):
+    def get_posterior_mean_covariance(self, x_t, t, y, clip_denoised=False, cond=None):
         B = x_t.size(0)
         t_ = torch.full((x_t.size(0),), t, device=x_t.device, dtype=torch.long)
         assert t_.shape == torch.Size(
@@ -93,7 +96,7 @@ class DDPM(nn.Module):
 
         # Generate the reconstruction from x_t
         x_recons = self._predict_xstart_from_eps(
-            x_t, t_, self.decoder(x_t, t_,y=y,cond=cond)
+            x_t, t_, self.decoder(x_t, t_, y=y, cond=cond)
         )
 
         # Clip
@@ -130,21 +133,16 @@ class DDPM(nn.Module):
         post_log_variance = extract(p_log_variance, t_, x_t.shape)
         return post_mean, post_variance, post_log_variance
 
-    def sample(self, x_t, y,cond=None, n_steps=None, checkpoints=[]):
+    def sample(self, x_t, y, cond=None, n_steps=None, checkpoints=[]):
         # The sampling process goes here!
         x = x_t
         B, *_ = x_t.shape
         sample_dict = {}
 
-
-
         num_steps = self.T if n_steps is None else n_steps
         checkpoints = [num_steps] if checkpoints == [] else checkpoints
         for idx, t in enumerate(reversed(range(0, num_steps))):
-            
-            z = (
-                torch.randn_like(x_t)
-            )
+            z = torch.randn_like(x_t)
             assert z.shape == x_t.shape
             (
                 post_mean,
@@ -178,8 +176,7 @@ class DDPM(nn.Module):
             self.minus_sqrt_alpha_bar, t, x_start.shape
         )
 
-    def forward(self, x, eps, t, y,cond=None):
+    def forward(self, x, eps, t, y, cond=None):
         # Predict noise
         x_t = self.compute_noisy_input(x, eps, t)
-        return self.decoder(x_t, t,y=y,cond=cond)
-
+        return self.decoder(x_t, t, y=y, cond=cond)

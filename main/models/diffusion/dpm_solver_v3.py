@@ -1,8 +1,9 @@
+import math
+import os
+
+import numpy as np
 import torch
 import torch.nn.functional as F
-import math
-import numpy as np
-import os
 
 
 class NoiseScheduleEDM:
@@ -143,7 +144,9 @@ class NoiseScheduleVP:
                 log_alphas = 0.5 * torch.log(alphas_cumprod)
             self.total_N = len(log_alphas)
             self.T = 1.0
-            self.t_array = torch.linspace(0.0, 1.0, self.total_N + 1)[1:].reshape((1, -1))
+            self.t_array = torch.linspace(0.0, 1.0, self.total_N + 1)[1:].reshape(
+                (1, -1)
+            )
             self.log_alpha_array = log_alphas.reshape(
                 (
                     1,
@@ -163,7 +166,9 @@ class NoiseScheduleVP:
                 / math.pi
                 - self.cosine_s
             )
-            self.cosine_log_alpha_0 = math.log(math.cos(self.cosine_s / (1.0 + self.cosine_s) * math.pi / 2.0))
+            self.cosine_log_alpha_0 = math.log(
+                math.cos(self.cosine_s / (1.0 + self.cosine_s) * math.pi / 2.0)
+            )
             self.schedule = schedule
             if schedule == "cosine":
                 # For the cosine schedule, T = 1 will have numerical issues. So we manually set the ending time T.
@@ -178,12 +183,16 @@ class NoiseScheduleVP:
         """
         if self.schedule == "discrete":
             return interpolate_fn(
-                t.reshape((-1, 1)), self.t_array.to(t.device), self.log_alpha_array.to(t.device)
+                t.reshape((-1, 1)),
+                self.t_array.to(t.device),
+                self.log_alpha_array.to(t.device),
             ).reshape((-1))
         elif self.schedule == "linear":
             return -0.25 * t**2 * (self.beta_1 - self.beta_0) - 0.5 * t * self.beta_0
         elif self.schedule == "cosine":
-            log_alpha_fn = lambda s: torch.log(torch.cos((s + self.cosine_s) / (1.0 + self.cosine_s) * math.pi / 2.0))
+            log_alpha_fn = lambda s: torch.log(
+                torch.cos((s + self.cosine_s) / (1.0 + self.cosine_s) * math.pi / 2.0)
+            )
             log_alpha_t = log_alpha_fn(t) - self.cosine_log_alpha_0
             return log_alpha_t
 
@@ -212,11 +221,17 @@ class NoiseScheduleVP:
         Compute the continuous-time label t in [0, T] of a given half-logSNR lambda_t.
         """
         if self.schedule == "linear":
-            tmp = 2.0 * (self.beta_1 - self.beta_0) * torch.logaddexp(-2.0 * lamb, torch.zeros((1,)).to(lamb))
+            tmp = (
+                2.0
+                * (self.beta_1 - self.beta_0)
+                * torch.logaddexp(-2.0 * lamb, torch.zeros((1,)).to(lamb))
+            )
             Delta = self.beta_0**2 + tmp
             return tmp / (torch.sqrt(Delta) + self.beta_0) / (self.beta_1 - self.beta_0)
         elif self.schedule == "discrete":
-            log_alpha = -0.5 * torch.logaddexp(torch.zeros((1,)).to(lamb.device), -2.0 * lamb)
+            log_alpha = -0.5 * torch.logaddexp(
+                torch.zeros((1,)).to(lamb.device), -2.0 * lamb
+            )
             t = interpolate_fn(
                 log_alpha.reshape((-1, 1)),
                 torch.flip(self.log_alpha_array.to(lamb.device), [1]),
@@ -226,7 +241,9 @@ class NoiseScheduleVP:
         else:
             log_alpha = -0.5 * torch.logaddexp(-2.0 * lamb, torch.zeros((1,)).to(lamb))
             t_fn = (
-                lambda log_alpha_t: torch.arccos(torch.exp(log_alpha_t + self.cosine_log_alpha_0))
+                lambda log_alpha_t: torch.arccos(
+                    torch.exp(log_alpha_t + self.cosine_log_alpha_0)
+                )
                 * 2.0
                 * (1.0 + self.cosine_s)
                 / math.pi
@@ -359,11 +376,17 @@ def model_wrapper(
         if model_type == "noise":
             return output
         elif model_type == "x_start":
-            alpha_t, sigma_t = noise_schedule.marginal_alpha(t_continuous), noise_schedule.marginal_std(t_continuous)
+            alpha_t, sigma_t = noise_schedule.marginal_alpha(
+                t_continuous
+            ), noise_schedule.marginal_std(t_continuous)
             dims = x.dim()
-            return (x - expand_dims(alpha_t, dims) * output) / expand_dims(sigma_t, dims)
+            return (x - expand_dims(alpha_t, dims) * output) / expand_dims(
+                sigma_t, dims
+            )
         elif model_type == "v":
-            alpha_t, sigma_t = noise_schedule.marginal_alpha(t_continuous), noise_schedule.marginal_std(t_continuous)
+            alpha_t, sigma_t = noise_schedule.marginal_alpha(
+                t_continuous
+            ), noise_schedule.marginal_std(t_continuous)
             dims = x.dim()
             return expand_dims(alpha_t, dims) * output + expand_dims(sigma_t, dims) * x
         elif model_type == "score":
@@ -394,7 +417,12 @@ def model_wrapper(
             cond_grad = cond_grad_fn(x, t_input)
             sigma_t = noise_schedule.marginal_std(t_continuous)
             noise = noise_pred_fn(x, t_continuous)
-            return noise - guidance_scale * expand_dims(sigma_t, dims=cond_grad.dim()) * cond_grad
+            return (
+                noise
+                - guidance_scale
+                * expand_dims(sigma_t, dims=cond_grad.dim())
+                * cond_grad
+            )
         elif guidance_type == "classifier-free":
             if guidance_scale == 1.0 or unconditional_condition is None:
                 return noise_pred_fn(x, t_continuous, cond=condition)
@@ -518,12 +546,20 @@ class DPM_Solver_v3:
         self.C = torch.from_numpy(C).cuda()
 
         # precompute timesteps
-        if skip_type == "logSNR" or skip_type == "time_uniform" or skip_type == "time_quadratic":
-            self.timesteps = self.get_time_steps(skip_type, t_T=t_T, t_0=t_0, N=steps, device=device)
+        if (
+            skip_type == "logSNR"
+            or skip_type == "time_uniform"
+            or skip_type == "time_quadratic"
+        ):
+            self.timesteps = self.get_time_steps(
+                skip_type, t_T=t_T, t_0=t_0, N=steps, device=device
+            )
             self.indexes = self.convert_to_indexes(self.timesteps)
             self.timesteps = self.convert_to_timesteps(self.indexes, device)
         elif skip_type == "edm":
-            self.indexes, self.timesteps = self.get_timesteps_edm(N=steps, device=device)
+            self.indexes, self.timesteps = self.get_timesteps_edm(
+                N=steps, device=device
+            )
             self.timesteps = self.convert_to_timesteps(self.indexes, device)
         else:
             raise ValueError(f"Unsupported timestep strategy {skip_type}")
@@ -544,7 +580,11 @@ class DPM_Solver_v3:
     def convert_to_indexes(self, timesteps):
         logSNR_steps = self.noise_schedule.marginal_lambda(timesteps)
         indexes = list(
-            (self.statistics_steps * (logSNR_steps - self.lambda_T) / (self.lambda_0 - self.lambda_T))
+            (
+                self.statistics_steps
+                * (logSNR_steps - self.lambda_T)
+                / (self.lambda_0 - self.lambda_T)
+            )
             .round()
             .cpu()
             .numpy()
@@ -554,7 +594,10 @@ class DPM_Solver_v3:
 
     def convert_to_timesteps(self, indexes, device):
         logSNR_steps = (
-            self.lambda_T + (self.lambda_0 - self.lambda_T) * torch.Tensor(indexes).to(device) / self.statistics_steps
+            self.lambda_T
+            + (self.lambda_0 - self.lambda_T)
+            * torch.Tensor(indexes).to(device)
+            / self.statistics_steps
         )
         return self.noise_schedule.inverse_lambda(logSNR_steps)
 
@@ -576,17 +619,25 @@ class DPM_Solver_v3:
         if skip_type == "logSNR":
             lambda_T = self.noise_schedule.marginal_lambda(torch.tensor(t_T).to(device))
             lambda_0 = self.noise_schedule.marginal_lambda(torch.tensor(t_0).to(device))
-            logSNR_steps = torch.linspace(lambda_T.cpu().item(), lambda_0.cpu().item(), N + 1).to(device)
+            logSNR_steps = torch.linspace(
+                lambda_T.cpu().item(), lambda_0.cpu().item(), N + 1
+            ).to(device)
             return self.noise_schedule.inverse_lambda(logSNR_steps)
         elif skip_type == "time_uniform":
             return torch.linspace(t_T, t_0, N + 1).to(device)
         elif skip_type == "time_quadratic":
             t_order = 2
-            t = torch.linspace(t_T ** (1.0 / t_order), t_0 ** (1.0 / t_order), N + 1).pow(t_order).to(device)
+            t = (
+                torch.linspace(t_T ** (1.0 / t_order), t_0 ** (1.0 / t_order), N + 1)
+                .pow(t_order)
+                .to(device)
+            )
             return t
         else:
             raise ValueError(
-                "Unsupported skip_type {}, need to be 'logSNR' or 'time_uniform' or 'time_quadratic'".format(skip_type)
+                "Unsupported skip_type {}, need to be 'logSNR' or 'time_uniform' or 'time_quadratic'".format(
+                    skip_type
+                )
             )
 
     def get_timesteps_edm(self, N, device):
@@ -604,7 +655,11 @@ class DPM_Solver_v3:
         timesteps = self.noise_schedule.inverse_lambda(lambdas)
 
         indexes = list(
-            (self.statistics_steps * (lambdas - self.lambda_T) / (self.lambda_0 - self.lambda_T))
+            (
+                self.statistics_steps
+                * (lambdas - self.lambda_T)
+                / (self.lambda_0 - self.lambda_T)
+            )
             .round()
             .cpu()
             .numpy()
@@ -613,7 +668,9 @@ class DPM_Solver_v3:
         return indexes, timesteps
 
     def get_g(self, f_t, i_s, i_t):
-        return torch.exp(self.S[i_s] - self.S[i_t]) * f_t - torch.exp(self.S[i_s]) * (self.B[i_t] - self.B[i_s])
+        return torch.exp(self.S[i_s] - self.S[i_t]) * f_t - torch.exp(self.S[i_s]) * (
+            self.B[i_t] - self.B[i_s]
+        )
 
     def compute_exponential_coefficients_high_order(self, i_s, i_t, order=2):
         key = (i_s, i_t, order)
@@ -621,7 +678,12 @@ class DPM_Solver_v3:
             coeffs = self.exp_coeffs[key]
         else:
             n = order - 1
-            a = self.L[i_s : i_t + 1] + self.S[i_s : i_t + 1] - self.L[i_s] - self.S[i_s]
+            a = (
+                self.L[i_s : i_t + 1]
+                + self.S[i_s : i_t + 1]
+                - self.L[i_s]
+                - self.S[i_s]
+            )
             x = self.ts[i_s : i_t + 1]
             b = (self.ts[i_s : i_t + 1] - self.ts[i_s]) ** n / math.factorial(n)
             coeffs = weighted_cumsumexp_trapezoid_torch(a, x, b, cumsum=False)
@@ -635,7 +697,10 @@ class DPM_Solver_v3:
             D[0] = g_0n
             for i in range(1, n + 1):
                 for j in range(n - i + 1):
-                    D[i].append((D[i - 1][j] - D[i - 1][j + 1]) / (lambda_0n[j] - lambda_0n[i + j]))
+                    D[i].append(
+                        (D[i - 1][j] - D[i - 1][j + 1])
+                        / (lambda_0n[j] - lambda_0n[i + j])
+                    )
 
             return [D[i][0] * math.factorial(i) for i in range(1, n + 1)]
         else:
@@ -649,7 +714,9 @@ class DPM_Solver_v3:
             solution = solution.reshape([n] + list(shape))
             return [solution[i - 1] * math.factorial(i) for i in range(1, n + 1)]
 
-    def multistep_predictor_update(self, x_lst, eps_lst, time_lst, index_lst, t, i_t, order=1, pseudo=False):
+    def multistep_predictor_update(
+        self, x_lst, eps_lst, time_lst, index_lst, t, i_t, order=1, pseudo=False
+    ):
         # x_lst: [..., x_s]
         # eps_lst: [..., eps_s]
         # time_lst: [..., time_s]
@@ -669,13 +736,18 @@ class DPM_Solver_v3:
         x_s = x_0n[0]
         g_0n = []
         for i in range(n + 1):
-            f_i = (sigma_0n[i] * eps_0n[i] - self.l[index_0n[i]] * x_0n[i]) / alpha_0n[i]
+            f_i = (sigma_0n[i] * eps_0n[i] - self.l[index_0n[i]] * x_0n[i]) / alpha_0n[
+                i
+            ]
             g_i = self.get_g(f_i, index_0n[0], index_0n[i])
             g_0n.append(g_i)
         g_0 = g_0n[0]
         x_t = (
             alpha_t / alpha_s * torch.exp(self.L[i_s] - self.L[i_t]) * x_s
-            - alpha_t * torch.exp(-self.L[i_t] - self.S[i_s]) * (self.I[i_t] - self.I[i_s]) * g_0
+            - alpha_t
+            * torch.exp(-self.L[i_t] - self.S[i_s])
+            * (self.I[i_t] - self.I[i_s])
+            * g_0
             - alpha_t
             * torch.exp(-self.L[i_t])
             * (self.C[i_t] - self.C[i_s] - self.B[i_s] * (self.I[i_t] - self.I[i_s]))
@@ -687,12 +759,16 @@ class DPM_Solver_v3:
                     x_t
                     - alpha_t
                     * torch.exp(self.L[i_s] - self.L[i_t])
-                    * self.compute_exponential_coefficients_high_order(i_s, i_t, order=i + 2)
+                    * self.compute_exponential_coefficients_high_order(
+                        i_s, i_t, order=i + 2
+                    )
                     * g_d[i]
                 )
         return x_t
 
-    def multistep_corrector_update(self, x_lst, eps_lst, time_lst, index_lst, order=1, pseudo=False):
+    def multistep_corrector_update(
+        self, x_lst, eps_lst, time_lst, index_lst, order=1, pseudo=False
+    ):
         # x_lst: [..., x_s, x_t]
         # eps_lst: [..., eps_s, eps_t]
         # lambda_lst: [..., lambda_s, lambda_t]
@@ -714,13 +790,18 @@ class DPM_Solver_v3:
         x_s = x_0n[0]
         g_0n = []
         for i in range(n + 1):
-            f_i = (sigma_0n[i] * eps_0n[i] - self.l[index_0n[i]] * x_0n[i]) / alpha_0n[i]
+            f_i = (sigma_0n[i] * eps_0n[i] - self.l[index_0n[i]] * x_0n[i]) / alpha_0n[
+                i
+            ]
             g_i = self.get_g(f_i, index_0n[0], index_0n[i])
             g_0n.append(g_i)
         g_0 = g_0n[0]
         x_t_new = (
             alpha_t / alpha_s * torch.exp(self.L[i_s] - self.L[i_t]) * x_s
-            - alpha_t * torch.exp(-self.L[i_t] - self.S[i_s]) * (self.I[i_t] - self.I[i_s]) * g_0
+            - alpha_t
+            * torch.exp(-self.L[i_t] - self.S[i_s])
+            * (self.I[i_t] - self.I[i_s])
+            * g_0
             - alpha_t
             * torch.exp(-self.L[i_t])
             * (self.C[i_t] - self.C[i_s] - self.B[i_s] * (self.I[i_t] - self.I[i_s]))
@@ -732,7 +813,9 @@ class DPM_Solver_v3:
                     x_t_new
                     - alpha_t
                     * torch.exp(self.L[i_s] - self.L[i_t])
-                    * self.compute_exponential_coefficients_high_order(i_s, i_t, order=i + 2)
+                    * self.compute_exponential_coefficients_high_order(
+                        i_s, i_t, order=i + 2
+                    )
                     * g_d[i]
                 )
         return x_t_new
@@ -761,14 +844,21 @@ class DPM_Solver_v3:
 
         for step in range(1, steps + 1):
             cached_x.append(x)
-            cached_model_output.append(self.noise_prediction_fn(x, timesteps[step - 1], cond))
+            cached_model_output.append(
+                self.noise_prediction_fn(x, timesteps[step - 1], cond)
+            )
             cached_time.append(timesteps[step - 1])
             cached_index.append(indexes[step - 1])
             if use_corrector and (timesteps[step - 1] > 0.5 or not half):
                 step_c_order = step_p_order + c_pseudo
                 if step_c_order > 1:
                     x_new = self.multistep_corrector_update(
-                        cached_x, cached_model_output, cached_time, cached_index, order=step_c_order, pseudo=c_pseudo
+                        cached_x,
+                        cached_model_output,
+                        cached_time,
+                        cached_index,
+                        order=step_c_order,
+                        pseudo=c_pseudo,
                     )
                     sigma_t = self.noise_schedule.marginal_std(cached_time[-1])
                     l_t = self.l[cached_index[-1]]
@@ -785,7 +875,14 @@ class DPM_Solver_v3:
             i_t = indexes[step]
 
             x = self.multistep_predictor_update(
-                cached_x, cached_model_output, cached_time, cached_index, t, i_t, order=step_p_order, pseudo=p_pseudo
+                cached_x,
+                cached_model_output,
+                cached_time,
+                cached_index,
+                t,
+                i_t,
+                order=step_p_order,
+                pseudo=p_pseudo,
             )
 
         if return_intermediate:
@@ -826,7 +923,9 @@ def interpolate_fn(x, xp, yp):
             cand_start_idx,
         ),
     )
-    end_idx = torch.where(torch.eq(start_idx, cand_start_idx), start_idx + 2, start_idx + 1)
+    end_idx = torch.where(
+        torch.eq(start_idx, cand_start_idx), start_idx + 2, start_idx + 1
+    )
     start_x = torch.gather(sorted_all_x, dim=2, index=start_idx.unsqueeze(2)).squeeze(2)
     end_x = torch.gather(sorted_all_x, dim=2, index=end_idx.unsqueeze(2)).squeeze(2)
     start_idx2 = torch.where(
@@ -839,8 +938,12 @@ def interpolate_fn(x, xp, yp):
         ),
     )
     y_positions_expanded = yp.unsqueeze(0).expand(N, -1, -1)
-    start_y = torch.gather(y_positions_expanded, dim=2, index=start_idx2.unsqueeze(2)).squeeze(2)
-    end_y = torch.gather(y_positions_expanded, dim=2, index=(start_idx2 + 1).unsqueeze(2)).squeeze(2)
+    start_y = torch.gather(
+        y_positions_expanded, dim=2, index=start_idx2.unsqueeze(2)
+    ).squeeze(2)
+    end_y = torch.gather(
+        y_positions_expanded, dim=2, index=(start_idx2 + 1).unsqueeze(2)
+    ).squeeze(2)
     cand = start_y + (x - start_x) * (end_y - start_y) / (end_x - start_x)
     return cand
 

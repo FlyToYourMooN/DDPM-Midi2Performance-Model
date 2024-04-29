@@ -1,10 +1,11 @@
 import math
+import time
 from abc import abstractmethod
 
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
-import time
+
 
 class GroupNorm32(nn.GroupNorm):
     def forward(self, x):
@@ -172,7 +173,7 @@ class Upsample(nn.Module):
         self.use_conv = use_conv
         self.dims = dims
         if use_conv:
-            self.conv = conv_nd(dims, channels, channels, 3, padding=1,groups=channels)
+            self.conv = conv_nd(dims, channels, channels, 3, padding=1, groups=channels)
 
     def forward(self, x):
         assert x.shape[1] == self.channels
@@ -203,7 +204,9 @@ class Downsample(nn.Module):
         self.dims = dims
         stride = 2 if dims != 3 else (1, 2, 2)
         if use_conv:
-            self.op = conv_nd(dims, channels, channels, 3, stride=stride, padding=1,groups=channels)
+            self.op = conv_nd(
+                dims, channels, channels, 3, stride=stride, padding=1, groups=channels
+            )
         else:
             self.op = avg_pool_nd(stride)
 
@@ -249,7 +252,7 @@ class ResBlock(TimestepBlock):
         self.in_layers = nn.Sequential(
             normalization(channels),
             nn.SiLU(),
-            conv_nd(dims, channels, self.out_channels,(3,3), padding=(1,1))
+            conv_nd(dims, channels, self.out_channels, (3, 3), padding=(1, 1)),
         )
         self.emb_layers = nn.Sequential(
             nn.SiLU(),
@@ -263,7 +266,9 @@ class ResBlock(TimestepBlock):
             nn.SiLU(),
             nn.Dropout(p=dropout),
             zero_module(
-                conv_nd(dims, self.out_channels, self.out_channels,(3,3), padding=(1,1))
+                conv_nd(
+                    dims, self.out_channels, self.out_channels, (3, 3), padding=(1, 1)
+                )
             ),
         )
 
@@ -303,7 +308,6 @@ class ResBlock(TimestepBlock):
         return self.skip_connection(x) + h
 
 
-
 class UNetModel(nn.Module):
     """
     The full UNet model with attention and timestep embedding.
@@ -328,8 +332,8 @@ class UNetModel(nn.Module):
 
     def __init__(
         self,
-        in_channels, #1
-        model_channels, #128
+        in_channels,  # 1
+        model_channels,  # 128
         out_channels,
         num_res_blocks,
         dropout=0,
@@ -470,21 +474,21 @@ class UNetModel(nn.Module):
         emb = self.time_embed(timestep_embedding(timesteps, self.model_channels))
 
         if self.num_classes is not None:
-            #y=y.squeeze(1)
+            # y=y.squeeze(1)
             assert y.shape == (x.shape[0],)
             emb = emb + self.label_emb(y)
 
         h = x.type(self.inner_dtype)
 
         for module in self.input_blocks:
-            #print(module)
+            # print(module)
             h = module(h, emb)
             hs.append(h)
         h = self.middle_block(h, emb)
         for module in self.output_blocks:
             cat_in = th.cat([h, hs.pop()], dim=1)
             h = module(cat_in, emb)
-            #print(h.shape)
+            # print(h.shape)
         h = h.type(x.dtype)
         return self.out(h)
 
@@ -500,19 +504,32 @@ class SuperResModel(UNetModel):
 
     def forward(self, x, timesteps, cond=None, **kwargs):
         _, _, new_height, new_width = x.shape
-        
+
         if cond is not None:
             upsampled = F.interpolate(cond, (new_height, new_width), mode="nearest")
             x = th.cat([x, upsampled], dim=1)
         return super().forward(x, timesteps, **kwargs)
 
+
 def model_structure(model):
-    blank = ' '
-    print('-' * 90)
-    print('|' + ' ' * 11 + 'weight name' + ' ' * 10 + '|' \
-          + ' ' * 15 + 'weight shape' + ' ' * 15 + '|' \
-          + ' ' * 3 + 'number' + ' ' * 3 + '|')
-    print('-' * 90)
+    blank = " "
+    print("-" * 90)
+    print(
+        "|"
+        + " " * 11
+        + "weight name"
+        + " " * 10
+        + "|"
+        + " " * 15
+        + "weight shape"
+        + " " * 15
+        + "|"
+        + " " * 3
+        + "number"
+        + " " * 3
+        + "|"
+    )
+    print("-" * 90)
     num_para = 0
     type_size = 1  # 如果是浮点数就是4
 
@@ -530,28 +547,34 @@ def model_structure(model):
         if len(str_num) <= 10:
             str_num = str_num + (10 - len(str_num)) * blank
 
-        print('| {} | {} | {} |'.format(key, shape, str_num))
-    print('-' * 90)
-    print('The total number of parameters: ' + str(num_para))
-    print('The parameters of Model {}: {:4f}M'.format(model._get_name(), num_para * type_size / 1000 / 1000))
-    print('-' * 90)
+        print("| {} | {} | {} |".format(key, shape, str_num))
+    print("-" * 90)
+    print("The total number of parameters: " + str(num_para))
+    print(
+        "The parameters of Model {}: {:4f}M".format(
+            model._get_name(), num_para * type_size / 1000 / 1000
+        )
+    )
+    print("-" * 90)
 
 
 if __name__ == "__main__":
-    model=SuperResModel(
+    model = SuperResModel(
         in_channels=1,
         model_channels=64,
         out_channels=1,
         num_res_blocks=1,
-        attention_resolutions=[16,],
-        channel_mult=[1,1,2,2,4,4],
+        attention_resolutions=[
+            16,
+        ],
+        channel_mult=[1, 1, 2, 2, 4, 4],
         use_checkpoint=False,
         dropout=0,
-        num_heads=1
+        num_heads=1,
     )
-    #print(model)
-    x=th.randn(1,1,256,128)
-    cond=th.randn(1,1,256,128)
-    t=th.tensor([1])
-    model(x,t,cond=cond)
-    #print(model_structure(model))
+    # print(model)
+    x = th.randn(1, 1, 256, 128)
+    cond = th.randn(1, 1, 256, 128)
+    t = th.tensor([1])
+    model(x, t, cond=cond)
+    # print(model_structure(model))

@@ -3,17 +3,17 @@ import logging
 import os
 
 import hydra
-import pytorch_lightning as pl
-from omegaconf import OmegaConf
-from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning import seed_everything
-from torch.utils.data import DataLoader
-import torch
-from models.callbacks import EMAWeightUpdate
-from models.diffusion import (DDPM, DDPMWrapper, SuperResModel)
 import matplotlib.pyplot as plt
-from recon_dataset import ReconstructionDataset
+import pytorch_lightning as pl
+import torch
 from hydra.utils import get_original_cwd
+from models.callbacks import EMAWeightUpdate
+from models.diffusion import DDPM, DDPMWrapper, SuperResModel
+from omegaconf import OmegaConf
+from pytorch_lightning import seed_everything
+from pytorch_lightning.callbacks import ModelCheckpoint
+from recon_dataset import ReconstructionDataset
+from torch.utils.data import DataLoader
 
 logger = logging.getLogger(__name__)
 
@@ -34,9 +34,9 @@ def train(config):
 
     # Dataset
     train_dataset = ReconstructionDataset(config.data.train_root, config.data)
-    #plt.imshow(train_dataset[0][1][0])
-    #plt.savefig("2.png")
-    #exit()
+    # plt.imshow(train_dataset[0][1][0])
+    # plt.savefig("2.png")
+    # exit()
     N = len(train_dataset)
     batch_size = config.training.batch_size
     batch_size = min(N, batch_size)
@@ -57,9 +57,9 @@ def train(config):
         channel_mult=dim_mults,
         use_checkpoint=False,
         dropout=config.model.dropout,
-        dims = 2
+        dims=2,
     )
-    #decoder = torch.compile(decoder, mode="max-autotune") I think its fast enough
+    # decoder = torch.compile(decoder, mode="max-autotune") I think its fast enough
     # EMA parameters are non-trainable
     ema_decoder = copy.deepcopy(decoder)
     for p in ema_decoder.parameters():
@@ -91,7 +91,6 @@ def train(config):
     # Trainer
     train_kwargs = {}
 
-
     original_cwd = get_original_cwd()
     results_dir = os.path.join(original_cwd, config.training.results_dir)
 
@@ -114,7 +113,7 @@ def train(config):
     loader_kws = {}
     train_kwargs["devices"] = [0]
     train_kwargs["accelerator"] = "gpu"
-    
+
     # Half precision training
     if config.training.fp16:
         train_kwargs["precision"] = 16
@@ -138,14 +137,21 @@ def train(config):
         drop_last=True,
         **loader_kws,
     )
-    
+
     train_kwargs["limit_val_batches"] = 1
-    
+
     trainer = pl.Trainer(**train_kwargs)
     if config.training.ckpt_path:
-        trainer.fit(ddpm_wrapper, train_dataloaders=train_loader, val_dataloaders=val_loader, ckpt_path=config.training.ckpt_path)
+        trainer.fit(
+            ddpm_wrapper,
+            train_dataloaders=train_loader,
+            val_dataloaders=val_loader,
+            ckpt_path=config.training.ckpt_path,
+        )
     else:
-        trainer.fit(ddpm_wrapper, train_dataloaders=train_loader, val_dataloaders=val_loader)
+        trainer.fit(
+            ddpm_wrapper, train_dataloaders=train_loader, val_dataloaders=val_loader
+        )
 
 
 if __name__ == "__main__":

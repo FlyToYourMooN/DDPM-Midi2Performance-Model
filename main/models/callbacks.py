@@ -8,7 +8,6 @@ from torch import Tensor
 from torch.nn import Module
 
 
-
 class EMAWeightUpdate(Callback):
     """EMA weight update
     Your model should have:
