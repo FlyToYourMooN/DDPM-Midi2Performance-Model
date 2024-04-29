@@ -1,6 +1,6 @@
 librsa
 scipy
-lightning=2.2.3
+lightning==2.2.3
 matplotlib
 tensorboard
 hydra-core
