@@ -8,6 +8,7 @@
 - [ ]  Inpainting and Generation Multi-Instrument based on MIDI
 - [ ]  Unconditional Generation model
 ## Requirements
+0. python == 3.9.x
 1. install torch == 2.2.0 *(Versions below this will not be able to use Vocoder, and versions above this do not have adapted Lighting)* , torchaudio
 
 2. run

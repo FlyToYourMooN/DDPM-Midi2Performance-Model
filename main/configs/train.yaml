@@ -4,6 +4,7 @@ mastero:
   save_path: /disk2/Piano-Solo/Processed_data
   train_rate: 0.90
   val_rate: 0.05
+  #fixed param
   sample_rate: 44032
 # musicnet dataset
 musicnet:

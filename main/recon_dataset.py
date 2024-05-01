@@ -7,10 +7,13 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from utils import normalize
 from glob import glob
+import random
 
 class ReconstructionDataset(Dataset):
     def __init__(self, root, config):
         self.data = glob(os.path.join(root, "**npz"), recursive = True)
+        random.shuffle(self.data)
+        
         self.min_level_db = config.min_level_db
         self.split_frame = config.split_frame
         self.train_frame = config.train_frame
