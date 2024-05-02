@@ -4,9 +4,8 @@
 - [x] Piano Solo(Mastero Dataset) model train
 - [x] The script for processing the Mastero and Musicnet dataset
 - [x] Inpainting and Generation Piano Solo based on MIDI
-- [ ]  M2P models trained on some multi-instrument data from the Musicnet dataset(String Quartet et.al)
-- [ ]  Inpainting and Generation Multi-Instrument based on MIDI
-- [ ]  Unconditional Generation model
+- [ ] **Train a multi-instrument synthesis model that includes over ten instruments, such as piano, violin, and saxophone** 
+
 ## Requirements
 0. python == 3.9.x
 1. install torch == 2.2.0 *(Versions below this will not be able to use Vocoder, and versions above this do not have adapted Lighting)* , torchaudio
